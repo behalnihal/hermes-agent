@@ -217,7 +217,9 @@ def start(env: Any, profile: str, *, geometry: str, wait_seconds: float = 20.0,
     rdir = _remote_dir(env, profile)
     live = _published(env, rdir)
     if live.get("DISPLAY"):
-        return live
+        # Adopting a screen the sandbox kept while this host's state was lost (fresh HERMES_HOME, a stop()
+        # whose kill missed): without the marker, status/thumbnail/stop would not know it is ours.
+        return _record(env, rdir, profile, live)
     stop(env, profile)  # a dead launcher may have left Xvnc holding :20; the relaunch needs it gone
     missing = missing_binaries(env)
     if missing:
@@ -259,16 +261,20 @@ def start(env: Any, profile: str, *, geometry: str, wait_seconds: float = 20.0,
     while time.monotonic() < deadline:
         live = _published(env, rdir)
         if live.get("DISPLAY"):
-            _marker().parent.mkdir(parents=True, exist_ok=True)
-            _marker().write_text(json.dumps({"display": live["DISPLAY"], "dir": rdir, "profile": profile,
-                                             **_owner_identity(env)}), encoding="utf-8")
             logger.info("Bot Desktop for profile %s up inside %s on %s", profile, type(env).__name__, live["DISPLAY"])
-            return live
+            return _record(env, rdir, profile, live)
         time.sleep(0.25)
     tail = streams.run_in(env, ["tail", "-c", "2000", f"{rdir}/launcher.log"], user=user, timeout=10).stdout
     stop(env, profile)
     raise RuntimeError(f"sandbox desktop did not publish its display within {wait_seconds:.0f}s:\n"
                        f"{tail.decode('utf-8', 'replace')}")
+
+
+def _record(env: Any, rdir: str, profile: str, live: Dict[str, str]) -> Dict[str, str]:
+    _marker().parent.mkdir(parents=True, exist_ok=True)
+    _marker().write_text(json.dumps({"display": live["DISPLAY"], "dir": rdir, "profile": profile,
+                                     **_owner_identity(env)}), encoding="utf-8")
+    return live
 
 
 def stop(env: Any, profile: str) -> bool:

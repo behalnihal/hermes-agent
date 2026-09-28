@@ -273,6 +273,15 @@ terminal:
 With a plain image the Screen pane reports the missing binaries and names
 this tag.
 
+An SSH host is whatever you point the backend at, so it carries the stack
+itself: the same binaries (TigerVNC, Xfce, `cua-driver`, `agent-browser` with a
+Chromium it can find), reachable from a **non-interactive login session**. That
+last part is where a host built from the desktop image differs from `docker exec`:
+a Dockerfile `ENV` never reaches an ssh session, so the image also writes
+`PLAYWRIGHT_BROWSERS_PATH` to `/etc/environment` for PAM to apply. A host of
+your own needs the equivalent, or `agent-browser` reports "Chrome not found"
+over ssh while working in a local shell.
+
 **Upgrading from the previous default.** A Docker sandbox you already have is
 kept, not replaced: when `docker_image` is unset and a persisted container runs
 another image (the old default, `nikolaik/python-nodejs:python3.11-nodejs20`),

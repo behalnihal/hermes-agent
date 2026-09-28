@@ -8,6 +8,7 @@ Two invariants, both about the boundary a sandboxed user chose:
 """
 from __future__ import annotations
 
+import json
 import subprocess
 
 import pytest
@@ -203,6 +204,20 @@ def test_sandbox_screen_that_cannot_come_up_is_an_error_not_a_host_browser(monke
     monkeypatch.setattr(runtime, "start", _boom)
     res = bts._browser_command_preflight()
     assert res["success"] is False and "Xvnc" in res["error"]
+
+
+def test_start_adopting_a_screen_the_sandbox_kept_records_the_marker(monkeypatch, isolated_home):
+    """Host state can vanish while the sandbox keeps its Xvnc (fresh HERMES_HOME, a stop() whose kill missed
+    the launcher). start() finding the display already published must record it like a fresh launch, or
+    status/thumbnail/stop never learn the screen is ours (found live against an ssh sandbox)."""
+    from tools.bot_desktop import sandbox_host
+
+    monkeypatch.setattr(sandbox_host, "_published", lambda env, rdir: {"DISPLAY": ":20", "XAUTHORITY": f"{rdir}/Xauthority"})
+    monkeypatch.setattr(sandbox_host, "_remote_dir", lambda env, profile: f"/scratch/hermes-bot-desktop/{profile}")
+    env = _FakeDocker()
+    assert sandbox_host.start(env, "default", geometry="1280x800")["DISPLAY"] == ":20"
+    marker = json.loads(sandbox_host._marker().read_text())
+    assert marker["display"] == ":20" and marker["container"] == env._container_id and marker["profile"] == "default"
 
 
 def test_marker_survives_a_gateway_restart_while_the_container_lives(monkeypatch, isolated_home):
