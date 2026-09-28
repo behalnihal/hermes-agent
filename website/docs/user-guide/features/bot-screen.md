@@ -273,6 +273,15 @@ terminal:
 With a plain image the Screen pane reports the missing binaries and names
 this tag.
 
+Under Singularity/Apptainer the same image is converted to a SIF
+(`docker://nousresearch/hermes-sandbox:desktop`); Dockerfile `ENV` survives the
+conversion, the image's `USER` does not: everything runs as you, so the browser
+profile lands in your `$HOME` inside the container, which is the persistent
+overlay by default. The instance runs `--containall`, so its temp dir (where the
+screen's runtime state lives) is Apptainer's session tmpfs, 64 MiB unless your
+admin raised `sessiondir max size`. This path is verified against the Apptainer
+documentation, not exercised live.
+
 An SSH host is whatever you point the backend at, so it carries the stack
 itself: the same binaries (TigerVNC, Xfce, `cua-driver`, `agent-browser` with a
 Chromium it can find), reachable from a **non-interactive login session**. That
